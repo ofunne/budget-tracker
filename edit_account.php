@@ -60,6 +60,7 @@ $email = $user['email'] ?? '';
     <title>Home </title>
 
     <link rel="stylesheet" href="/budget-tracker/assets/css/styles.css">
+    <?php require __DIR__ . '/includes/theme_loader.php'; ?>
 
     <link href='https://cdn.boxicons.com/fonts/basic/boxicons.min.css' rel='stylesheet'>
 
@@ -67,29 +68,7 @@ $email = $user['email'] ?? '';
 
   <body>
 
-    <header>
-      <a href="index.php" class="logo"><img src="/budget-tracker/assets/images/ego-no-bg.png" alt="Ofi Logo"></a>
-      <nav>
-        <a href="index.php">Home</a>
-        <a href="about.php">About</a>
-        <a href="contact.php">Contact</a>
-      </nav>
-      <div class="user-auth">
-        <?php if (!empty($firstname)): ?>
-        <div class="profile-box">
-          <div class="profile-circle"><?= strtoupper($firstname[0]); ?></div>
-          <div class="dropdown">
-            <a href="account.php">My Account</a>
-            <a href="income.php">My Income</a>
-            <a href="expenses.php">My Expenses</a>
-            <a href="logout.php">Log Out</a>
-          </div>
-        </div>
-        <?php else: ?>
-        <button type="button" class="login-btn-modal">Log In</button>
-        <?php endif; ?>
-    </div>
-    </header>
+    <?php include __DIR__ . '/components/navbar.php'; ?>
 
     <?php if (!empty($alerts)): ?>
     <div class="alert-box">

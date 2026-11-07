@@ -1,12 +1,8 @@
-## Ofi - Budget Tracker
+## My Budget Tracker
 
 ### Description
 
-Ofi is a website designed to assist users in tracking their finances. With functionalities for tracking different streams of income and recording expenses it offers way for people to monitor their daily finances. This website is particularly useful for those who want to keep a close eye on their spending and maintain a balanced budget.<br>
-
-You can see a video here on how Ofi works:
-
-[![YouTube video showing how Ofi works](https://ytcards.demolab.com/?id=zr1sLnJjV1w&title=How+Ofi+Works+-+Updated&lang=en&timestamp=1757316341&background_color=%23F6B0D2&title_color=%23AF1665&stats_color=%23522B29&max_title_lines=1&width=500&border_radius=10&duration=110 "How Ofi Works - Updated")](https://www.youtube.com/watch?v=zr1sLnJjV1w)
+My Budget Tracker is a website designed to assist users in tracking their finances. With functionalities for tracking different streams of income and recording expenses it offers way for people to monitor their daily finances. This website is particularly useful for those who want to keep a close eye on their spending and maintain a balanced budget.<br>
 
 ### Built with
 
@@ -37,18 +33,23 @@ You can see a video here on how Ofi works:
 ### Usage Guide
 #### Homepage
 When logged in, the homepage displays a card with your balance for the current month. Clicking on the card expands it to show a summary of income and spending.
+![Entry Page](/assets/images/entrance-ss.png)
 
 #### Adding Income and Expenses
-Clicking on the spending or income card takes you to another page where you can enter your income or expense, alongside the date (month), the category, and a description.<br><br>The details of your input will be displayed in a table below the input field.
+Clicking on the spending or income card takes you to another page where you can view your income streams or expenses.
+![Income](/assets/images/income-pg-ss.png)
 
 #### Editing and Delting
-You can edit or delete any input by clicking the corresponding button in the table.
+You can add a new entry, and you can also edit or delete any input by clicking on the entry in the table.
+![New Entry Page](/assets/images/new-entry-ss.png)
 
 #### Monthly Income
-Check your income and expenses for any given month by filtering by month (below the input field), then clicking the Ofi logo or the home button. This will show you your balance, income, and expenses for your chosen month.
+You can filter for date, amount, category, as well as searching for key words.
+![Filters](/assets/images/filters-ss.png)
 
-#### Saving and Loading Data
-You can edit your account details or delete your account by clikcing into the dropdown menu and clicking "My Account".
+#### Customise the Website
+You can customise your user experience by changing the theme of the website.
+![Theme Page](/assets/images/theme-ss.png)
 
 ### Contact me
 

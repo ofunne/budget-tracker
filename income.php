@@ -1,5 +1,4 @@
 <?php
-
 session_start();
 require 'config_budget.php';
 
@@ -10,142 +9,148 @@ if (!isset($_SESSION['user_id'])) {
   ];
   header('Location: index.php');
   exit();
-} else {
-
-  $user_id = $_SESSION['user_id'];
-
-  // Get selected period from dropdown (or default to showing all)
-  $selectedPeriod = $_GET['period'] ?? '';
-
-  // Fetch all available periods for dropdown
-  $stmtPeriods = $pdo->prepare("
-    SELECT DISTINCT period 
-    FROM budgets 
-    WHERE user_id = :user_id 
-    ORDER BY period DESC
-  ");
-  $stmtPeriods->execute(['user_id' => $user_id]);
-  $availablePeriods = $stmtPeriods->fetchAll(PDO::FETCH_COLUMN);
-
-  // Prepare SQL to fetch incomes
-  $sql = "
-    SELECT income.*, budgets.period 
-    FROM income 
-    JOIN budgets ON income.budget_id = budgets.id 
-    WHERE income.user_id = :user_id
-  ";
-
-  $params = ['user_id' => $user_id];
-
-  if (!empty($selectedPeriod)) {
-    $sql .= " AND budgets.period = :period";
-    $params['period'] = $selectedPeriod;
-  }
-
-  $sql .= " ORDER BY income.id DESC";
-
-  $stmt = $pdo->prepare($sql);
-  $stmt->execute($params);
-  $entries = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-  // Restore session values
-  $firstname = $_SESSION['firstname'] ?? null;
-  $surname = $_SESSION['surname'] ?? null;
-  $email = $_SESSION['email'] ?? null;
-
-  $alerts = $_SESSION['alerts'] ?? [];
-  $active_form = $_SESSION['active_form'] ?? '';
-
-  unset($_SESSION['alerts'], $_SESSION['active_form']);
-
-  // Keep session values alive
-  if ($firstname !== null) $_SESSION['firstname'] = $firstname;
-  if ($surname !== null) $_SESSION['surname'] = $surname;
-  if ($email !== null) $_SESSION['email'] = $email;
-
 }
 
-?>
+$user_id = $_SESSION['user_id'];
+$firstname = $_SESSION['firstname'] ?? null;
+$surname = $_SESSION['surname'] ?? null;
+$email = $_SESSION['email'] ?? null;
+$alerts = $_SESSION['alerts'] ?? [];
+$active_form = $_SESSION['active_form'] ?? '';
 
-<?php
+unset($_SESSION['alerts'], $_SESSION['active_form']);
 
-$currentPeriod = $_GET['period'] ?? date('Y-m');
+if ($firstname !== null) $_SESSION['firstname'] = $firstname;
+if ($surname !== null) $_SESSION['surname'] = $surname;
+if ($email !== null) $_SESSION['email'] = $email;
 
-$stmt = $pdo->prepare("
-  SELECT category, SUM(amount) as total
-  FROM income
-  JOIN budgets ON income.budget_id = budgets.id
-  WHERE income.user_id = :user_id
-    AND budgets.period = :period
-  GROUP BY category
-");
-$stmt->execute([
-  'user_id' => $user_id,
-  'period' => $currentPeriod
-]);
-$incomeData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$sort = $_GET['sort'] ?? 'date_desc';
+$categoryFilter = $_GET['category'] ?? 'all';
+$contains = trim((string)($_GET['contains'] ?? ''));
+$minPrice = $_GET['min_price'] ?? '';
+$maxPrice = $_GET['max_price'] ?? '';
+$minDate = $_GET['min_date'] ?? '';
+$maxDate = $_GET['max_date'] ?? '';
+
+$sql = "SELECT id, category, title, amount, created_at FROM income WHERE user_id = :user_id";
+$params = ['user_id' => $user_id];
+
+if ($categoryFilter !== 'all') {
+  $sql .= " AND category = :category";
+  $params['category'] = $categoryFilter;
+}
+
+if ($contains !== '') {
+  $sql .= " AND LOWER(title) LIKE :contains";
+  $params['contains'] = '%' . strtolower($contains) . '%';
+}
+
+if ($minPrice !== '') {
+  $sql .= " AND amount >= :min_price";
+  $params['min_price'] = (float)$minPrice;
+}
+
+if ($maxPrice !== '') {
+  $sql .= " AND amount <= :max_price";
+  $params['max_price'] = (float)$maxPrice;
+}
+
+if ($minDate !== '') {
+  $sql .= " AND DATE(created_at) >= :min_date";
+  $params['min_date'] = $minDate;
+}
+
+if ($maxDate !== '') {
+  $sql .= " AND DATE(created_at) <= :max_date";
+  $params['max_date'] = $maxDate;
+}
+
+switch ($sort) {
+  case 'date_asc':
+    $sql .= " ORDER BY created_at ASC, id ASC";
+    break;
+  case 'amount_desc':
+    $sql .= " ORDER BY amount DESC, created_at DESC";
+    break;
+  case 'amount_asc':
+    $sql .= " ORDER BY amount ASC, created_at DESC";
+    break;
+  case 'date_desc':
+  default:
+    $sql .= " ORDER BY created_at DESC, id DESC";
+    break;
+}
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+$entries = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$chartSql = "SELECT category, SUM(amount) AS total FROM income WHERE user_id = :user_id";
+$chartParams = ['user_id' => $user_id];
+
+if ($categoryFilter !== 'all') {
+  $chartSql .= " AND category = :category";
+  $chartParams['category'] = $categoryFilter;
+}
+
+if ($contains !== '') {
+  $chartSql .= " AND LOWER(title) LIKE :contains";
+  $chartParams['contains'] = '%' . strtolower($contains) . '%';
+}
+
+if ($minPrice !== '') {
+  $chartSql .= " AND amount >= :min_price";
+  $chartParams['min_price'] = (float)$minPrice;
+}
+
+if ($maxPrice !== '') {
+  $chartSql .= " AND amount <= :max_price";
+  $chartParams['max_price'] = (float)$maxPrice;
+}
+
+if ($minDate !== '') {
+  $chartSql .= " AND DATE(created_at) >= :min_date";
+  $chartParams['min_date'] = $minDate;
+}
+
+if ($maxDate !== '') {
+  $chartSql .= " AND DATE(created_at) <= :max_date";
+  $chartParams['max_date'] = $maxDate;
+}
+
+$chartSql .= " GROUP BY category ORDER BY total DESC";
+$stmtChart = $pdo->prepare($chartSql);
+$stmtChart->execute($chartParams);
+$chartRows = $stmtChart->fetchAll(PDO::FETCH_ASSOC);
 
 $categories = [];
 $amounts = [];
-foreach ($incomeData as $row) {
-    $categories[] = $row['category'];
-    $amounts[] = $row['total'];
+foreach ($chartRows as $row) {
+  $categories[] = $row['category'];
+  $amounts[] = (float)$row['total'];
 }
-
 ?>
 
 <!DOCTYPE html>
-
 <html lang="en">
-
   <head>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
     <title>My Income | Ofi</title>
-
     <link rel="stylesheet" href="/budget-tracker/assets/css/styles.css">
-
+    <?php require __DIR__ . '/includes/theme_loader.php'; ?>
     <link href='https://cdn.boxicons.com/fonts/basic/boxicons.min.css' rel='stylesheet'>
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
   </head>
-
   <body>
-
-    <header>
-      <a href="index.php?period=<?= urlencode($selectedPeriod ?: date('Y-m')) ?>" class="logo">
-        <img src="/budget-tracker/assets/images/ego-no-bg.png" alt="Ofi Logo">
-      </a>
-      <nav>
-        <a href="index.php?period=<?= urlencode($selectedPeriod ?: date('Y-m')) ?>">Home</a>
-        <a href="about.php">About</a>
-        <a href="contact.php">Contact</a>
-      </nav>
-      <div class="user-auth">
-        <?php if (!empty($firstname)): ?>
-        <div class="profile-box">
-          <div class="profile-circle"><?= strtoupper($firstname[0]); ?></div>
-          <div class="dropdown">
-            <a href="account.php">My Account</a>
-            <a href="income.php">My Income</a>
-            <a href="expenses.php">My Expenses</a>
-            <a href="logout.php">Log Out</a>
-          </div>
-        <?php else: ?>
-        <button type="button" class="login-btn-modal">Log In</button>
-        <?php endif; ?>
-      </div>
-    </header>
+    <?php include __DIR__ . '/components/navbar.php'; ?>
 
     <?php if (!empty($alerts)): ?>
     <div class="alert-box">
-      <?php foreach($alerts as $alert): ?>
-      <div class="alert <?= $alert['type']; ?>">
+      <?php foreach ($alerts as $alert): ?>
+      <div class="alert <?= htmlspecialchars($alert['type'], ENT_QUOTES, 'UTF-8'); ?>">
         <i class='bx <?= $alert['type'] === 'success' ? 'bxs-check-circle' : 'bxs-x-circle'; ?>'></i>
-        <span><?=$alert['message']; ?></span>
+        <span><?= htmlspecialchars($alert['message'], ENT_QUOTES, 'UTF-8'); ?></span>
       </div>
       <?php endforeach; ?>
     </div>
@@ -153,182 +158,172 @@ foreach ($incomeData as $row) {
 
     <div class="auth-modal <?= $active_form === 'register' ? 'show slide' : ($active_form === 'login' ? 'show' : ''); ?>">
       <button type="button" class="close-btn-modal">
-        <i class='bx bxs-x-circle'></i> 
+        <i class='bx bxs-x-circle'></i>
       </button>
       <div class="form-box login">
-        <h2>
-          Log In
-        </h2>
+        <h2>Log In</h2>
         <form action="auth_process.php" method="POST">
           <div class="input-box">
             <input type="email" name="email" placeholder="Enter Email Address" required>
-            <i class='bx bxs-envelope-alt'></i> 
+            <i class='bx bxs-envelope-alt'></i>
           </div>
           <div class="input-box">
             <input type="password" name="password" placeholder="********" required>
-            <i class='bx bxs-lock'></i> 
+            <i class='bx bxs-lock'></i>
           </div>
-          <button type="submit" name="login_btn" class="btn">
-            Log In
-          </button>
+          <button type="submit" name="login_btn" class="btn">Log In</button>
           <p>Don't have an account? <a href="#" class="register-link">Register Here</a></p>
         </form>
       </div>
 
       <div class="form-box register">
-        <h2>
-          Register
-        </h2>
+        <h2>Register</h2>
         <form action="auth_process.php" method="POST">
           <div class="input-box">
             <input type="text" name="firstname" placeholder="Enter First Name" required>
-            <i class='bx bxs-user'></i>  
+            <i class='bx bxs-user'></i>
           </div>
           <div class="input-box">
             <input type="text" name="surname" placeholder="Enter Surname" required>
-            <i class='bx bxs-user'></i>  
+            <i class='bx bxs-user'></i>
           </div>
           <div class="input-box">
             <input type="email" name="email" placeholder="Enter Email Address" required>
-            <i class='bx bxs-envelope-alt'></i> 
+            <i class='bx bxs-envelope-alt'></i>
           </div>
           <div class="input-box">
             <input type="password" name="password" placeholder="********" required>
-            <i class='bx bxs-lock'></i> 
+            <i class='bx bxs-lock'></i>
           </div>
-          <button type="submit" name="register_btn" class="btn">
-            Register
-          </button>
+          <button type="submit" name="register_btn" class="btn">Register</button>
           <p>Already have an account? <a href="#" class="login-link">Log In Here</a></p>
         </form>
       </div>
     </div>
 
-    <div class="in-container">
-      <?php if (!empty($firstname)): ?>
-        <h2>
-          <?= ($firstname); ?>'s Income
-        </h2>
-      <?php else: ?>
-        <h2>
-          Your Income
-        </h2>
-      <?php endif; ?>
-      <!--<div class="income-error">
-        <p></p>
-      </div>-->
-      <div class="income-content">
-        <div class="your-income">
-          <form action="add_income.php" method="POST">
-            <label for="category">Income Source: </label>
-            <select name="category" class="income-cat">
-              <option value="">Choose Source</option>
-              <option value="Salary">Salary</option>
-              <option value="Freelancing">Freelance</option>
-              <option value="Socials">Social Media & Sponsorships</option>
-              <option value="Investment">Investments & Interest</option>
-              <option value="Other">Other</option>
-            </select><br>
+    <main class="page-shell">
+      <h2 class="page-title">My Income</h2>
 
-            <label for="title">Income Description: </label>
-            <input type="text" name="title" placeholder="Enter Income Description" class="income-input"><br>
+      <form class="filter-panel" method="GET">
+        <div class="filter-row">
+          <label class="field">
+            <select name="sort">
+              <option value="date_desc" <?= $sort === 'date_desc' ? 'selected' : '' ?>>Newest first</option>
+              <option value="date_asc" <?= $sort === 'date_asc' ? 'selected' : '' ?>>Oldest first</option>
+              <option value="amount_desc" <?= $sort === 'amount_desc' ? 'selected' : '' ?>>Highest amount</option>
+              <option value="amount_asc" <?= $sort === 'amount_asc' ? 'selected' : '' ?>>Lowest amount</option>
+            </select>
+          </label>
 
-            <label for="amount">Income Amount: </label>
-            <input type="number" name="amount" placeholder="Enter Income Amount" min="0" step="0.01" class="income-amount"><br>
+          <label class="field">
+            <select name="category">
+              <option value="all" <?= $categoryFilter === 'all' ? 'selected' : '' ?>>All categories</option>
+              <?php foreach (array_unique(array_column($entries, 'category')) as $category): ?>
+                <option value="<?= htmlspecialchars($category, ENT_QUOTES, 'UTF-8'); ?>" <?= $categoryFilter === $category ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($category, ENT_QUOTES, 'UTF-8'); ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </label>
 
-            <label for="period">Income Month:</label>
-            <input type="month" name="period" id="inc-period" value="<?= isset($income['period']) ? htmlspecialchars($income['period']) : date('Y-m') ?>"><br>
+          <label class="field field-wide">
+            <input type="text" name="contains" value="<?= htmlspecialchars($contains, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Search keyword">
+          </label>
 
-            <button class="button" id="income-button">Add Income</button>
-          </form>
+          <label class="field small-field">
+            <input type="number" step="0.01" name="min_price" value="<?= htmlspecialchars($minPrice, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Min £">
+          </label>
+
+          <label class="field small-field">
+            <input type="number" step="0.01" name="max_price" value="<?= htmlspecialchars($maxPrice, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Max £">
+          </label>
+
+          <label class="field small-field">
+            <input type="date" name="min_date" value="<?= htmlspecialchars($minDate, ENT_QUOTES, 'UTF-8'); ?>" placeholder="From date">
+          </label>
+
+          <label class="field small-field">
+            <input type="date" name="max_date" value="<?= htmlspecialchars($maxDate, ENT_QUOTES, 'UTF-8'); ?>" placeholder="To date">
+          </label>
         </div>
-      </div>
-
-      <form method="GET" action="income.php" class="filter-month">
-        <label for="period">Filter by Month:</label>
-        <select name="period" id="filt-period" onchange="this.form.submit()">
-          <option value="">-- Show All --</option>
-          <?php foreach ($availablePeriods as $period): ?>
-            <option value="<?= $period ?>" <?= $period === $selectedPeriod ? 'selected' : '' ?>>
-              <?= date('F Y', strtotime($period)) ?>
-            </option>
-          <?php endforeach; ?>
-        </select>
+        <div class="filter-actions">
+          <button type="submit" class="btn ghost-btn">Apply</button>
+          <a href="income.php" class="reset-link">Reset</a>
+        </div>
       </form>
 
-      <table class="in-table-content">
-        <h2 style="margin-bottom: 2rem;">Income Details</h2>
-        <thead>
-          <tr><th>Category</th><th>Description</th><th>Amount</th><th>Month</th><th>Actions</th></tr>
-        </thead>
-        <tbody class="in-table-tr-content" id="in-table-data">
-          <?php foreach ($entries as $income): ?>
-            <tr>
-              <td class="cat"><?= htmlspecialchars($income['category']) ?></td>
-              <td class="tit"><?= htmlspecialchars($income['title']) ?></td>
-              <td class="amt">£<?= number_format($income['amount'], 2) ?></td>
-              <td class="mon"><?= date('F Y', strtotime($income['period'])) ?></td>
-              <td class="act">
-                <a href="edit_income.php?id=<?= $income['id'] ?>" class="in-button edit">Edit</a>
-                <a href="delete_income.php?id=<?= $income['id'] ?>" style="text-decoration:none;" onclick="return confirm('Are you sure you want to delete this source of income?')" class="in-button delete" >Delete</a>
-              </td>
-            </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
+      <section class="records-layout">
+        <div class="chart-card">
+          <canvas id="incomeChart"></canvas>
+        </div>
 
-      <div class="in-chart">
-        <canvas id="incomeChart" style="max-width: 600px; max-height: 600px; align-self: center;justify-self: center;padding-top: 3rem;">
-        </canvas>
+        <div class="record-panel">
+          <div class="record-panel-header">
+            <h3>Income Details</h3>
+          </div>
+
+          <div class="record-list">
+            <?php if (!empty($entries)): ?>
+              <?php foreach ($entries as $income): ?>
+                <a href="edit_income.php?id=<?= (int)$income['id']; ?>" class="record-item-link">
+                  <div class="record-item">
+                    <div class="record-main">
+                      <strong><?= htmlspecialchars($income['title'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                    </div>
+                    <div class="record-meta">
+                      <span class="date-text"><?= htmlspecialchars(date('d/m/Y', strtotime($income['created_at'])), ENT_QUOTES, 'UTF-8'); ?></span>
+                    </div>
+                    <div class="record-amount income">+£<?= number_format((float)$income['amount'], 2); ?></div>
+                  </div>
+                </a>
+              <?php endforeach; ?>
+            <?php else: ?>
+              <p class="empty-state">No income entries match your filters yet.</p>
+            <?php endif; ?>
+          </div>
+        </div>
+      </section>
+
+      <div class="bottom-actions">
+        <a href="add_income.php" class="btn ghost-btn">Add income</a>
       </div>
-
-    </div>
+    </main>
 
     <script src="/budget-tracker/assets/js/script.js"></script>
 
     <script>
       const incomeCategories = <?= json_encode($categories); ?>;
       const incomeAmounts = <?= json_encode($amounts); ?>;
-    </script>
 
-    <script>
-      const ctx = document.getElementById('incomeChart').getContext('2d');
-      const incomeChart = new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels: incomeCategories,
-          datasets: [{
-            label: '<?= $currentPeriod ?> Income',
-            data: incomeAmounts,
-            backgroundColor: [
-              '#F6B0D2',
-              '#AF1665',
-              '#522B29',
-              '#AFD5AA',
-              '#C26CC9'
-            ]
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              title: {
-                display: true,
-                text: 'Income Breakdown for <?= date("F Y", strtotime($currentPeriod)) ?>'
-              }
-            },
-            tooltip: {
+      const incomeCtx = document.getElementById('incomeChart');
+      if (incomeCtx) {
+        const incomePalette = ['#B8336A', '#F9C8E0', '#945C4C', '#73956F', '#132A13', '#A3145E', '#31572C', '#BCA0BC', '#DD6E42', '#C1DFF0', '#88CCF1', '#F0D2D1', '#823200'];
+
+        new Chart(incomeCtx, {
+          type: 'pie',
+          data: {
+            labels: incomeCategories.length ? incomeCategories : ['No data'],
+            datasets: [{
+              data: incomeAmounts.length ? incomeAmounts : [1],
+              backgroundColor: incomePalette
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
                 callbacks: {
-                    label: (item) =>
-                        `${item.dataset.label}: £${item.formattedValue}`,
-                },
-            },
+                  label: (context) => `${context.label}: £${context.parsed.toFixed(2)}`
+                }
+              }
+            }
           }
-        }
-      });
+        });
+      }
     </script>
-
   </body>
 </html>

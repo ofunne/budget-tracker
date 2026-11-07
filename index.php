@@ -97,6 +97,7 @@ else {
     <title>Home | Ofi</title>
 
     <link rel="stylesheet" href="/budget-tracker/assets/css/styles.css">
+    <?php require __DIR__ . '/includes/theme_loader.php'; ?>
 
     <link href='https://cdn.boxicons.com/fonts/basic/boxicons.min.css' rel='stylesheet'>
 
@@ -104,31 +105,7 @@ else {
 
   <body>
 
-    <header>
-      <a href="index.php" class="logo"><img src="/budget-tracker/assets/images/ego-no-bg.png" alt="Ofi Logo"></a>
-      <nav>
-        <a href="index.php">Home</a>
-        <a href="about.php">About</a>
-        <a href="contact.php">Contact</a>
-      </nav>
-      <div class="user-auth">
-        <div class="profile-box">
-          <?php if (isset($_SESSION['user_id'])): ?>
-            <div class="profile-circle">
-              <?= $firstname ? strtoupper($firstname[0]) : 'U'; ?>
-            </div>
-            <div class="dropdown">
-              <a href="account.php">My Account</a>
-              <a href="income.php">My Income</a>
-              <a href="expenses.php">My Expenses</a>
-              <a href="logout.php">Log Out</a>
-            </div>
-          <?php else: ?>
-            <button type="button" class="login-btn-modal">Log In</button>
-          <?php endif; ?>
-        </div>
-      </div>
-    </header>
+    <?php include __DIR__ . '/components/navbar.php'; ?>
 
     <section>
       <h1 class="welcome">Welcome, <?= $firstname ?? 'budgeter'?>!</h1>
@@ -232,7 +209,7 @@ else {
             <p>Total Income</p>
           </span>
         </li>
-        <li class="balance-card">
+        <li class="balance-card" data-href="budget.php" tabindex="0" role="button" aria-label="Open recent transactions">
           <i class='bx bxs-piggy-bank'></i> 
           <span class="info">
             <h3><span>£</span><span>
